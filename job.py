@@ -60,20 +60,23 @@ class FetchAndSendTweetsJob(Job):
                     # get just the latest tweet
                     self.logger.debug(
                         "Fetching latest tweet by {}".format(tw_user.screen_name))
-                    tweets = bot.tw.user_timeline(
-                        screen_name=tw_user.screen_name,
-                        count=1,
-                        tweet_mode='extended')
+                    tweets = bot.tw.get_users_tweets(
+                        # username=tw_user.screen_name,
+                        id=tw_user.tw_id,
+                        max_results=5,
+                        tweet_fields=['created_at'])
+                    self.logger.debug(tweets)
                 else:
                     # get the fresh tweets
                     self.logger.debug(
                         "Fetching new tweets from {}".format(tw_user.screen_name))
-                    tweets = bot.tw.user_timeline(
-                        screen_name=tw_user.screen_name,
-                        since_id=tw_user.last_tweet_id,
-                        tweet_mode='extended')
+                    tweets = bot.tw.get_users_tweets(
+                        # username=tw_user.screen_name,
+                        id=tw_user.tw_id,
+                        since_id=tw_user.last_tweet_id)
+                    self.logger.debug(tweets)
                 updated_tw_users.append(tw_user)
-            except tweepy.error.TweepError as e:
+            except tweepy.errors.TooManyRequests as e:
                 sc = e.response.status_code
                 if sc == 429:
                     self.logger.debug("- Hit ratelimit, breaking.")
@@ -93,40 +96,45 @@ class FetchAndSendTweetsJob(Job):
                     "- Unknown exception, Status code {}".format(sc))
                 continue
 
-            for tweet in tweets:
-                self.logger.debug("- Got tweet: {}".format(tweet.full_text))
+            if not tweets.get('data'):
+                continue
+
+            for tweet in tweets.get('data'):
+                tw_text = tweet.get('text')
+                self.logger.debug("- Got tweet: {}".format(tw_text))
 
                 # Check if tweet contains media, else check if it contains a link to an image
                 extensions = ('.jpg', '.jpeg', '.png', '.gif')
                 pattern = '[(%s)]$' % ')('.join(extensions)
                 photo_url = ''
-                tweet_text = html.unescape(tweet.full_text)
-                if 'media' in tweet.entities:
-                    photo_url = tweet.entities['media'][0]['media_url_https']
-                else:
-                    for url_entity in tweet.entities['urls']:
-                        expanded_url = url_entity['expanded_url']
-                        if re.search(pattern, expanded_url):
-                            photo_url = expanded_url
-                            break
-                if photo_url:
-                    self.logger.debug("- - Found media URL in tweet: " + photo_url)
+                tweet_text = html.unescape(tw_text)
+                # if 'media' in tweet.keys():
+                #     # TODO
+                #     photo_url = tweet.entities['media'][0]['media_url_https']
+                # else:
+                #     for url_entity in tweet.entities['urls']:
+                #         expanded_url = url_entity['expanded_url']
+                #         if re.search(pattern, expanded_url):
+                #             photo_url = expanded_url
+                #             break
+                # if photo_url:
+                #     self.logger.debug("- - Found media URL in tweet: " + photo_url)
 
-                for url_entity in tweet.entities['urls']:
-                    expanded_url = url_entity['expanded_url']
-                    indices = url_entity['indices']
-                    display_url = tweet.full_text[indices[0]:indices[1]]
-                    tweet_text = tweet_text.replace(display_url, expanded_url)
+                # for url_entity in tweet.entities['urls']:
+                #     expanded_url = url_entity['expanded_url']
+                #     indices = url_entity['indices']
+                #     display_url = tweet.text[indices[0]:indices[1]]
+                #     tweet_text = tweet_text.replace(display_url, expanded_url)
 
                 tw_data = {
-                    'tw_id': tweet.id,
+                    'tw_id': int(tweet.get('id')),
                     'text': tweet_text,
-                    'created_at': tweet.created_at,
+                    'created_at': tweet.get('created_at'),
                     'twitter_user': tw_user,
                     'photo_url': photo_url,
                 }
                 try:
-                    t = Tweet.get(Tweet.tw_id == tweet.id)
+                    t = Tweet.get(Tweet.tw_id == int(tweet.get('id')))
                     self.logger.warning("Got duplicated tw_id on this tweet:")
                     self.logger.warning(str(tw_data))
                 except Tweet.DoesNotExist:

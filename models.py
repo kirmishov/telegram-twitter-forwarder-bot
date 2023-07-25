@@ -13,6 +13,7 @@ class BaseModel(Model):
         database = db
 
 class TwitterUser(BaseModel):
+    tw_id = BigIntegerField(unique=True)
     screen_name = CharField(unique=True)
     known_at = DateTimeField(default=datetime.datetime.now)
     name = CharField()
@@ -77,7 +78,7 @@ class Tweet(BaseModel):
     tw_id = BigIntegerField(unique=True)
     known_at = DateTimeField(default=datetime.datetime.now)
     text = TextField()
-    created_at = DateTimeField()
+    created_at = DateTimeField(default=datetime.datetime.now) # TODO
     twitter_user = ForeignKeyField(TwitterUser, related_name='tweets')
     photo_url = TextField(default='')
 

@@ -7,7 +7,7 @@ import telegram
 from telegram.emoji import Emoji
 import tweepy
 from tweepy.auth import OAuthHandler
-from tweepy.error import TweepError
+# from tweepy.error import TweepError
 
 from models import Subscription
 from util import with_touched_chat, escape_markdown, markdown_twitter_usernames
@@ -251,7 +251,7 @@ def cmd_verify(bot, update, args, chat):
     auth.request_token = json.loads(chat.twitter_request_token)
     try:
         auth.get_access_token(verifier_code)
-    except TweepError:
+    except:
         bot.reply(update, "Invalid verifier code. Use /auth again")
         return
     chat.twitter_token = auth.access_token

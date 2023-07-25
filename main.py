@@ -12,23 +12,11 @@ from job import FetchAndSendTweetsJob
 
 if "TELEGRAM_BOT_TOKEN" in environ:
     # The project is using environment vars, so load from those
-    if "TWITTER_ACCESS_TOKEN" in environ:
+    if "TWITTER_BEARER_TOKEN" in environ:
         # The project explicitly has twitter access token, so use that in the dict
         env = dict(
             TELEGRAM_BOT_TOKEN=environ.get("TELEGRAM_BOT_TOKEN"),
-            TWITTER_CONSUMER_KEY=environ.get("TWITTER_CONSUMER_KEY"),
-            TWITTER_CONSUMER_SECRET=environ.get("TWITTER_CONSUMER_SECRET"),
-
-            # Optionals
-            TWITTER_ACCESS_TOKEN=environ.get("TWITTER_ACCESS_TOKEN"),
-            TWITTER_ACCESS_TOKEN_SECRET=environ.get("TWITTER_ACCESS_TOKEN_SECRET"),
-        )
-    else:
-        # The project doesn't have an access token, so don't add the keys so the checks below pass
-        env = dict(
-            TELEGRAM_BOT_TOKEN=environ.get("TELEGRAM_BOT_TOKEN"),
-            TWITTER_CONSUMER_KEY=environ.get("TWITTER_CONSUMER_KEY"),
-            TWITTER_CONSUMER_SECRET=environ.get("TWITTER_CONSUMER_SECRET"),
+            TWITTER_BEARER_TOKEN=environ.get("TWITTER_BEARER_TOKEN")
         )
 else:
     # The project isn't using environment vars, so we should use the secrets file instead
@@ -52,7 +40,8 @@ if __name__ == '__main__':
 
     logging.getLogger(TwitterForwarderBot.__name__).setLevel(logging.DEBUG)
     logging.getLogger(FetchAndSendTweetsJob.__name__).setLevel(logging.DEBUG)
-
+    
+    """
     # initialize Twitter API
     try:
         auth = tweepy.OAuthHandler(env['TWITTER_CONSUMER_KEY'], env['TWITTER_CONSUMER_SECRET'])
@@ -68,8 +57,10 @@ if __name__ == '__main__':
         var = exc.args[0]
         print(("The optional configuration variable {} is missing. "
                "Tweepy will be initialized in 'app-only' mode.").format(var))
+    """
 
-    twapi = tweepy.API(auth)
+    # twapi = tweepy.API(auth)
+    twapi = tweepy.Client(bearer_token=env['TWITTER_BEARER_TOKEN'], return_type=dict)
 
     # initialize telegram API
     token = env['TELEGRAM_BOT_TOKEN']

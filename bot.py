@@ -3,6 +3,7 @@ import logging
 import telegram
 import tweepy
 from pytz import timezone, utc
+from datetime import datetime
 from telegram import Bot
 from telegram.error import TelegramError
 
@@ -36,11 +37,13 @@ class TwitterForwarderBot(Bot):
             if tweet.photo_url:
                 photo_url = '[\xad](%s)' % tweet.photo_url
 
-            created_dt = utc.localize(tweet.created_at)
+            # created_dt = utc.localize(tweet.get('created_at')) # TODO
+            created_dt = utc.localize(datetime.now())
             if chat.timezone_name is not None:
                 tz = timezone(chat.timezone_name)
                 created_dt = created_dt.astimezone(tz)
             created_at = created_dt.strftime('%Y-%m-%d %H:%M:%S %Z')
+            print(created_at)
             self.sendMessage(
                 chat_id=chat.chat_id,
                 disable_web_page_preview=not photo_url,
@@ -86,21 +89,22 @@ class TwitterForwarderBot(Bot):
 
     def get_tw_user(self, tw_username):
         try:
-            tw_user = self.tw.get_user(tw_username)
-        except tweepy.error.TweepError as err:
+            tw_user = self.tw.get_user(username=tw_username)
+        except Exception as err:
             self.logger.error(err)
             return None
 
         db_user, _created = TwitterUser.get_or_create(
-            screen_name=tw_user.screen_name,
+            tw_id=int(tw_user['data']['id']),
+            screen_name=tw_user['data']['username'],
             defaults={
-                'name': tw_user.name,
+                'name': tw_user['data']['name'],
             },
         )
 
         if not _created:
-            if db_user.name != tw_user.name:
-                db_user.name = tw_user.name
+            if db_user.name != tw_user['data']['username']:
+                db_user.name = tw_user['data']['username']
                 db_user.save()
 
         return db_user
